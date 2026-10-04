@@ -1,0 +1,23 @@
+name = "project-name-generator"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# The free *.workers.dev address (with HTTPS) is switched on.
+# Set to false once you use your own domain and no longer want the workers.dev address.
+workers_dev = true
+
+# Lets `import ui from "./ui.html"` return the file as a string.
+rules = [{ type = "Text", globs = ["**/*.html"], fallthrough = true }]
+
+# Your own domain with HTTPS (optional). Add the domain to Cloudflare first, then
+# remove the # characters below and put in your own name. Cloudflare creates and renews
+# the HTTPS certificate by itself. In the dashboard (SSL/TLS), choose "Full (strict)",
+# turn on "Always Use HTTPS" and set "Minimum TLS Version" to 1.2.
+#
+# routes = [
+#   { pattern = "names.example.com", custom_domain = true }
+# ]
+
+# Lets you read errors and logs in the Cloudflare dashboard (Workers > your worker > Logs).
+[observability]
+enabled = true
