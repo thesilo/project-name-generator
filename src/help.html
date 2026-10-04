@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f6feb'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='white' font-family='sans-serif'%3EN%3C/text%3E%3C/svg%3E">
+<title>How to use – Project Name Generator</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  h2 { font-size:1.15rem; margin:28px 0 8px; }
+  p, li { color:var(--text); }
+  .sub, .muted { color:var(--muted); }
+  a { color:var(--accent); }
+  a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.9em; }
+  code { background:#21262d; border-radius:4px; padding:1px 5px; }
+  pre { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:12px 14px; overflow-x:auto; }
+  kbd { background:#21262d; border:1px solid var(--border); border-radius:4px; padding:0 5px; font-size:.85em; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <p><a href="/">← Back to the generator</a></p>
+  <h1>How to use</h1>
+  <p class="sub">Random project names, built from words in different categories.</p>
+
+  <h2>In the browser</h2>
+  <ol>
+    <li>Choose <strong>2 words</strong> or <strong>3 words</strong>.</li>
+    <li>Press <strong>Generate 1 Name</strong>, <strong>Generate 10 Names</strong> or <kbd>Space</kbd>.</li>
+    <li>Use <strong>Copy</strong> on a name, or <strong>Copy All</strong> for a batch.</li>
+    <li>Press ☆ to save a name as a favorite. Favorites live in your browser only. <strong>Export .txt</strong> downloads them as a file.</li>
+    <li>Press <strong>.com?</strong> to check whether the matching domain name is free (opens whois.com).</li>
+  </ol>
+
+  <h2>How names are made</h2>
+  <p>Each name follows a natural pattern, for example an adjective followed by a metal and an animal: <em>Silent Iron Wolf</em>.
+  No two words in a name come from the same category. Every choice uses the cryptographically secure random generator
+  (<code>crypto.getRandomValues</code>), so names are not predictable. Nothing is stored on the server, so the same name
+  can turn up again, but there are about 5 million different 3-word names.</p>
+
+  <h2>API</h2>
+  <pre><code>GET /api/generate?count=10&amp;words=3</code></pre>
+  <table>
+    <tr><th>Parameter</th><th>Values</th><th>Default</th></tr>
+    <tr><td><code>count</code></td><td>1 to 50 (other numbers are clamped)</td><td>1</td></tr>
+    <tr><td><code>words</code></td><td>2 or 3</td><td>3</td></tr>
+  </table>
+  <p>Invalid values fall back to the defaults instead of causing an error. Example:</p>
+  <pre><code id="curl">curl "/api/generate?count=2&amp;words=3"</code></pre>
+  <p>Response:</p>
+  <pre><code>{
+  "count": 2,
+  "words": 3,
+  "results": [
+    { "name": "Silent Iron Wolf",
+      "words": ["Silent", "Iron", "Wolf"],
+      "categories": ["adjectives", "metals", "animals"] }
+  ]
+}</code></pre>
+  <p class="muted">Limit: 60 API requests per minute per IP address. Above that you get HTTP 429 and a <code>Retry-After</code> header.
+  The API accepts <code>GET</code> requests only.</p>
+
+  <h2>Security</h2>
+  <p class="muted">The site is served over HTTPS only. Plain HTTP requests are redirected, and browsers are told to remember that (HSTS).</p>
+</main>
+<script>
+  (function () {
+    var el = document.getElementById("curl");
+    if (el) el.textContent = 'curl "' + location.origin + '/api/generate?count=2&words=3"';
+  })();
+</script>
+</body>
+</html>

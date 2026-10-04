@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f6feb'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='white' font-family='sans-serif'%3EN%3C/text%3E%3C/svg%3E">
+<title>Project Name Generator</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d; --text: #e6edf3;
+    --muted: #8b949e; --accent: #58a6ff; --accent-bg: #1f6feb; --star: #e3b341;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.1rem; margin: 0; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .grow { flex: 1; }
+  button {
+    background: #21262d; color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 14px; font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: var(--muted); }
+  button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--accent-bg); border-color: var(--accent-bg); color: #fff; }
+  button.icon { padding: 4px 9px; }
+  button.starred { color: var(--star); }
+  fieldset { border: 0; padding: 0; margin: 0; display: flex; gap: 16px; }
+  label { cursor: pointer; }
+  ul { list-style: none; margin: 12px 0 0; padding: 0; }
+  li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); }
+  li:first-child { border-top: 0; }
+  .name { flex: 1; font-weight: 600; word-break: break-word; }
+  .cats { color: var(--muted); font-size: .8rem; font-weight: 400; display: block; }
+  a.icon { color: var(--accent); text-decoration: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 9px; font-size: .9rem; }
+  .empty, .error { color: var(--muted); margin: 12px 0 0; }
+  .error { color: #f85149; }
+  @media (max-width: 480px) {
+    li { flex-wrap: wrap; }
+    .name { flex: 1 1 100%; }
+  }
+  kbd { background: #21262d; border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; font-size: .85em; }
+</style>
+</head>
+<body>
+<main>
+  <noscript><p class="error">This page needs JavaScript. The API at <code>/api/generate</code> works without it.</p></noscript>
+  <h1>Project Name Generator</h1>
+  <p class="sub">Cryptographically random names from 7 word categories. Press <kbd>Space</kbd> to generate. <a href="/help" style="color:var(--accent)">How to use</a></p>
+
+  <section class="panel" aria-label="Generator">
+    <div class="row">
+      <fieldset>
+        <legend class="sr" style="position:absolute;left:-9999px">Words per name</legend>
+        <label><input type="radio" name="words" value="2"> 2 words</label>
+        <label><input type="radio" name="words" value="3" checked> 3 words</label>
+      </fieldset>
+      <span class="grow"></span>
+      <button class="primary" id="gen1" type="button">Generate 1 Name</button>
+      <button class="primary" id="gen10" type="button">Generate 10 Names</button>
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <h2 class="grow">Results</h2>
+      <button id="copyAll" type="button" hidden>Copy All</button>
+    </div>
+    <p class="error" id="error" role="alert" hidden></p>
+    <p class="empty" id="resultsEmpty">Nothing yet. Generate a name.</p>
+    <ul id="results"></ul>
+  </section>
+
+  <section class="panel" aria-label="Favorites">
+    <div class="row">
+      <h2 class="grow">Favorites</h2>
+      <button id="export" type="button">Export .txt</button>
+    </div>
+    <p class="empty" id="favsEmpty">No favorites yet. Click ☆ on a name to save it.</p>
+    <ul id="favs"></ul>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var KEY = "projectNameFavorites";
+  var results = [];
+  var favs = loadFavs();
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function loadFavs() {
+    try {
+      var v = JSON.parse(localStorage.getItem(KEY) || "[]");
+      return Array.isArray(v) ? v.filter(function (x) { return typeof x === "string"; }) : [];
+    } catch (e) { return []; }
+  }
+  function saveFavs() {
+    try { localStorage.setItem(KEY, JSON.stringify(favs)); } catch (e) { /* storage unavailable */ }
+  }
+
+  function wordCount() {
+    return document.querySelector('input[name="words"]:checked').value;
+  }
+
+  function showError(msg) {
+    var el = $("error");
+    el.textContent = msg || "";
+    el.hidden = !msg;
+  }
+
+  var requestId = 0;
+  function friendly(msg) { var e = new Error(msg); e.friendly = true; return e; }
+
+  function generate(count) {
+    var id = ++requestId; // ignore stale responses if the user clicks quickly
+    showError("");
+    fetch("/api/generate?count=" + count + "&words=" + wordCount())
+      .then(function (r) {
+        if (r.status === 429) throw friendly("Too many requests. Wait a moment and try again.");
+        if (!r.ok) throw friendly("Something went wrong (" + r.status + ").");
+        return r.json();
+      })
+      .then(function (data) {
+        if (id !== requestId) return;
+        if (!data || !Array.isArray(data.results)) throw friendly("Unexpected response from the server.");
+        results = data.results;
+        render();
+      })
+      .catch(function (e) {
+        if (id !== requestId) return;
+        showError(e && e.friendly ? e.message : "Could not generate names. Check your connection and try again.");
+      });
+  }
+
+  function copy(text, btn, label) {
+    var done = function () {
+      btn.textContent = "Copied!";
+      setTimeout(function () { btn.textContent = label; }, 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { showError("Could not access the clipboard."); });
+    } else {
+      showError("Clipboard not available in this browser.");
+    }
+  }
+
+  function domainUrl(name) {
+    return "https://whois.com/whois/" + encodeURIComponent(name.toLowerCase().replace(/\s+/g, "")) + ".com";
+  }
+
+  function toggleFav(name) {
+    var i = favs.indexOf(name);
+    if (i === -1) favs.push(name); else favs.splice(i, 1);
+    saveFavs();
+    render();
+  }
+
+  function row(name, cats, removeOnly) {
+    var li = document.createElement("li");
+
+    var label = document.createElement("span");
+    label.className = "name";
+    label.textContent = name;
+    if (cats) {
+      var c = document.createElement("span");
+      c.className = "cats";
+      c.textContent = cats.join(" · ").replace(/_/g, " ");
+      label.appendChild(c);
+    }
+    li.appendChild(label);
+
+    var copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "icon";
+    copyBtn.textContent = "Copy";
+    copyBtn.addEventListener("click", function () { copy(name, copyBtn, "Copy"); });
+    li.appendChild(copyBtn);
+
+    var starBtn = document.createElement("button");
+    starBtn.type = "button";
+    starBtn.className = "icon";
+    var isFav = favs.indexOf(name) !== -1;
+    starBtn.textContent = removeOnly ? "✕" : (isFav ? "★" : "☆");
+    if (isFav && !removeOnly) starBtn.classList.add("starred");
+    starBtn.setAttribute("aria-label", removeOnly ? "Remove favorite " + name : (isFav ? "Unfavorite " : "Favorite ") + name);
+    starBtn.addEventListener("click", function () { toggleFav(name); });
+    li.appendChild(starBtn);
+
+    var link = document.createElement("a");
+    link.className = "icon";
+    link.href = domainUrl(name);
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = ".com?";
+    link.setAttribute("aria-label", "Check " + name + ".com availability");
+    li.appendChild(link);
+
+    return li;
+  }
+
+  function render() {
+    var ul = $("results");
+    ul.textContent = "";
+    results.forEach(function (r) { ul.appendChild(row(r.name, r.categories, false)); });
+    $("resultsEmpty").hidden = results.length > 0;
+    $("copyAll").hidden = results.length < 2;
+
+    var fl = $("favs");
+    fl.textContent = "";
+    favs.forEach(function (n) { fl.appendChild(row(n, null, true)); });
+    $("favsEmpty").hidden = favs.length > 0;
+  }
+
+  $("gen1").addEventListener("click", function () { generate(1); });
+  $("gen10").addEventListener("click", function () { generate(10); });
+  $("copyAll").addEventListener("click", function () {
+    copy(results.map(function (r) { return r.name; }).join("\n"), $("copyAll"), "Copy All");
+  });
+  $("export").addEventListener("click", function () {
+    if (!favs.length) { showError("No favorites to export."); return; }
+    showError("");
+    var blob = new Blob([favs.join("\n") + "\n"], { type: "text/plain" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "favorite-project-names.txt";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  // Space generates a name only when nothing is focused, so keyboard users can still
+  // press Space on a focused button, link or radio as usual.
+  document.addEventListener("keydown", function (e) {
+    if (e.code !== "Space" || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    if (e.target !== document.body && e.target !== document.documentElement) return;
+    e.preventDefault();
+    generate(1);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
